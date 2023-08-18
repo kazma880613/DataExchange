@@ -140,26 +140,32 @@ namespace DataExchange
                     OdbcCommand command2 = new OdbcCommand(lines[1], _OdbcConnection);
                     OdbcDataReader reader2 = command2.ExecuteReader();
 
-                    Dictionary<string, string> map2 = new Dictionary<string, string>();
+                    Dictionary<string, object> middlemap = new Dictionary<string, object>();
+
+                    string tableName = string.Empty;
 
                     while (reader2.Read())
                     {
+                        Dictionary<string, string> map2 = new Dictionary<string, string>();
+
                         if (reader.GetString(0) == reader2.GetString(1))
                         {
                             for (int j = 0; j < Second_Linefields.Length; j++)
                             {
                                 map2.Add(Second_Linefields[j], reader2.GetString(j));
                             }
+
+                            string json2 = JsonConvert.SerializeObject(map2, Formatting.Indented);
                         }
 
-                        string json2 = JsonConvert.SerializeObject(map2, Formatting.Indented);
+                        middlemap.Add(tableName, map2);
                     }
 
-                    string tableName = ExtractTableNameFromQuery(lines[1]);
-
-                    map.Add(tableName, map2);
+                    tableName = ExtractTableNameFromQuery(lines[1]);
 
                     reader2.Close();
+
+                    map.Add(tableName, middlemap);
 
                     string json = JsonConvert.SerializeObject(map, Formatting.Indented);
 

@@ -126,51 +126,49 @@ namespace DataExchange
                 OdbcCommand command = new OdbcCommand(lines[0], _OdbcConnection);
                 OdbcDataReader reader = command.ExecuteReader();
 
-                OdbcCommand command2 = new OdbcCommand(lines[1], _OdbcConnection);
-                OdbcDataReader reader2 = command2.ExecuteReader();
+                
 
                 while (reader.Read())
                 {
-                    Dictionary<string, string> map = new Dictionary<string, string>();
+                    Dictionary<string, object> map = new Dictionary<string, object>();
 
                     for (int i = 0; i < FirstLinefields.Length; i++)
                     {
                         map.Add(FirstLinefields[i], reader.GetString(i));
                     }
 
-                    string key1ToFind = "country.code";
+                    OdbcCommand command2 = new OdbcCommand(lines[1], _OdbcConnection);
+                    OdbcDataReader reader2 = command2.ExecuteReader();
 
-                    string key2ToFind = "city.CountryCode";
+                    Dictionary<string, string> map2 = new Dictionary<string, string>();
 
                     while (reader2.Read())
                     {
-                        //Dictionary<string, string> map2 = new Dictionary<string, string>();
+                        if (reader.GetString(0) == reader2.GetString(1))
+                        {
+                            for (int j = 0; j < Second_Linefields.Length; j++)
+                            {
+                                map2.Add(Second_Linefields[j], reader2.GetString(j));
+                            }
+                        }
 
-                        //if (reader2.GetString(1) == reader.GetString(0))
-                        //{
-                        //    string tableName = ExtractTableNameFromQuery(lines[1]);
-
-                        //    for (int j = 0; j < Second_Linefields.Length; j++)
-                        //    {
-
-                        //        map2.Add(Second_Linefields[j], reader2.GetString(j));
-
-                        //        string json2 = JsonConvert.SerializeObject(map2, Formatting.Indented);
-
-                        //        responseBody = responseBody + json2 + ",\n";
-
-                        //    }
-                        //}
+                        string json2 = JsonConvert.SerializeObject(map2, Formatting.Indented);
                     }
+
+                    string tableName = ExtractTableNameFromQuery(lines[1]);
+
+                    map.Add(tableName, map2);
+
+                    reader2.Close();
 
                     string json = JsonConvert.SerializeObject(map, Formatting.Indented);
 
                     responseBody = responseBody + json + ",\n";
 
-                    Console.WriteLine(reader.GetString(0));
+                    Console.WriteLine(responseBody);
                 }
 
-                //Console.WriteLine(responseBody);
+                Console.WriteLine(responseBody);
 
                 reader.Close();
 

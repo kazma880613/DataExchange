@@ -23,7 +23,9 @@ namespace DataExchange
 
     public class request
     {
-        public string body;
+        public string objectItem;
+        public List<string> QueryString;
+
     }
 
     public class response

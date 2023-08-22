@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using Org.BouncyCastle.Asn1.Ocsp;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,6 +15,8 @@ namespace DataExchange
         public static string ConnectionString;
 
         public static string QueryString;
+
+        public static request _request;
 
         public InfoLoad()
         {
@@ -61,6 +64,20 @@ namespace DataExchange
                 Console.WriteLine("Error: " + ex.Message);
 
                 return ex.Message;
+            }
+        }
+
+        public void requestInfoLoad()
+        {
+            string fileName = "requestInfo.txt";
+
+            string fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName);
+
+            string AllInfo = File.ReadAllText(fullPath);
+
+            if(AllInfo != null || AllInfo != "")
+            {
+                _request = JsonConvert.DeserializeObject<request>(AllInfo);
             }
         }
     }

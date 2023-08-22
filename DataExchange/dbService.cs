@@ -11,6 +11,7 @@ using Newtonsoft.Json;
 using System.Collections;
 using Google.Protobuf.WellKnownTypes;
 using MySqlX.XDevAPI.Relational;
+using System.Text.RegularExpressions;
 
 namespace DataExchange
 {
@@ -59,176 +60,95 @@ namespace DataExchange
             }
         }
 
-        public void doaction(string requestString)
+        public void Collecting_data(List<string> QueryString)
         {
-            string[] lines = requestString.Split('\n');
-
-            if(lines.Length == 1)
-            {
-                ODBC_SQL_SimpleQuery(requestString);
-            }
-            else
-            {
-                ODBC_SQL_ComplexQuery(requestString);
-            }
-        }
-
-        public void ODBC_SQL_SimpleQuery(string QueryString)
-        {
-            string[] fields = ExtractFieldsFromQuery(QueryString);
-
-            string responseBody  = string.Empty;
-
-            try
-            {
-                OdbcCommand command = new OdbcCommand(QueryString, _OdbcConnection);
-                OdbcDataReader reader = command.ExecuteReader();
-                
-                while (reader.Read())
-                {
-                    Dictionary<string, string> map = new Dictionary<string, string>();
-
-                    for(int i = 0; i < fields.Length ; i++)
-                    {
-                        map.Add(fields[i], reader.GetString(i));
-                    }
-
-                    string json = JsonConvert.SerializeObject(map, Formatting.Indented);
-
-                    responseBody = responseBody + json + ",\n";
-                }
-
-                Console.WriteLine(responseBody);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Error: " + ex.Message);
-            }
-        }
-
-        public void ODBC_SQL_ComplexQuery(string QueryString)
-        {
-            string[] lines = QueryString.Split('\n');
-
-            string[] FirstLinefields = ExtractFieldsFromQuery(lines[0]);
-
-            string[] Second_Linefields = ExtractFieldsFromQuery(lines[1]);
-
             string responseBody = string.Empty;
 
-            //foreach (string word in lines)
-            //{
-            //     Console.WriteLine(word);
-            //}
+            List<Dictionary<string, object>> respnoseJson = new List<Dictionary<string, object>>();
+
+            Dictionary<string, string[]> keyValuePairs = new Dictionary<string, string[]>();
+
+            Dictionary<int, string> EqualValue = new Dictionary<int, string>();
+
+            for (int i = 0; i < QueryString.Count; i++)
+            {
+                string tableName = ExtractTableNameFromQuery(QueryString[i]);
+
+                string[] fieldsName = ExtractFieldsFromQuery(QueryString[i]);
+
+                string divideString = equalstring(QueryString[i]);
+
+                keyValuePairs.Add(tableName, fieldsName);
+
+                EqualValue.Add(i, divideString);
+            }
 
             try
             {
-                OdbcCommand command = new OdbcCommand(lines[0], _OdbcConnection);
+                OdbcCommand command = new OdbcCommand(sqlQuery(QueryString[0]), _OdbcConnection);
                 OdbcDataReader reader = command.ExecuteReader();
-
-                
 
                 while (reader.Read())
                 {
                     Dictionary<string, object> map = new Dictionary<string, object>();
 
-                    for (int i = 0; i < FirstLinefields.Length; i++)
+                    for (int i = 0; i < keyValuePairs[ExtractTableNameFromQuery(sqlQuery(QueryString[0]))].Length; i++)
                     {
-                        map.Add(FirstLinefields[i], reader.GetString(i));
+                        map.Add(keyValuePairs[ExtractTableNameFromQuery(sqlQuery(QueryString[0]))][i], reader.GetString(i));
                     }
 
-                    OdbcCommand command2 = new OdbcCommand(lines[1], _OdbcConnection);
-                    OdbcDataReader reader2 = command2.ExecuteReader();
-
-                    Dictionary<string, object> middlemap = new Dictionary<string, object>();
-
-                    string tableName = string.Empty;
-
-                    while (reader2.Read())
+                    if (keyValuePairs.Count > 1)
                     {
-                        Dictionary<string, string> map2 = new Dictionary<string, string>();
 
-                        if (reader.GetString(0) == reader2.GetString(1))
+                        for (int j = 1; j < keyValuePairs.Count; j++)
                         {
-                            for (int j = 0; j < Second_Linefields.Length; j++)
+                            List<Dictionary<string, object>> Jsonobject = new List<Dictionary<string, object>>();
+
+                            List<int> newEqual = new List<int>();
+
+                            newEqual = TwoInt(EqualValue[j]);
+
+                            OdbcCommand command2 = new OdbcCommand(sqlQuery(QueryString[j]), _OdbcConnection);
+                            OdbcDataReader reader2 = command2.ExecuteReader();
+
+                            while (reader2.Read())
                             {
-                                map2.Add(Second_Linefields[j], reader2.GetString(j));
+                                Dictionary<string, object> map2 = new Dictionary<string, object>();
+
+                                if (reader.GetString(newEqual[0]) == reader2.GetString(newEqual[1]))
+                                {
+                                    for (int k = 0; k < keyValuePairs[ExtractTableNameFromQuery(sqlQuery(QueryString[j]))].Length; k++)
+                                    {
+                                        map2.Add(keyValuePairs[ExtractTableNameFromQuery(sqlQuery(QueryString[j]))][k], reader2.GetString(k));
+                                    }
+
+                                    Jsonobject.Add(map2);
+                                }
                             }
 
-                            string json2 = JsonConvert.SerializeObject(map2, Formatting.Indented);
+                            reader2.Close();
+
+                            if (Jsonobject.Count > 0)
+                            {
+                                map.Add(ExtractTableNameFromQuery(sqlQuery(QueryString[j])), Jsonobject);
+                            }
                         }
 
-                        middlemap.Add(tableName, map2);
                     }
 
-                    tableName = ExtractTableNameFromQuery(lines[1]);
-
-                    reader2.Close();
-
-                    map.Add(tableName, middlemap);
-
-                    string json = JsonConvert.SerializeObject(map, Formatting.Indented);
-
-                    responseBody = responseBody + json + ",\n";
-
-                    Console.WriteLine(responseBody);
+                    respnoseJson.Add(map);
                 }
-
-                Console.WriteLine(responseBody);
 
                 reader.Close();
 
-                responseBody = string.Empty;
+                responseBody = JsonConvert.SerializeObject(respnoseJson, Formatting.Indented);
+
+                Console.WriteLine(responseBody);
             }
             catch (Exception ex)
             {
                 Console.WriteLine("Error: " + ex.Message);
             }
-
-
-            //try
-            //{
-            //    string tablename = ExtractTableNameFromQuery(lines[1]);
-
-            //    responseBody = responseBody + "\"" + tablename + "\":[\n"  ;
-
-            //    OdbcCommand command2 = new OdbcCommand(lines[1], _OdbcConnection);
-            //    OdbcDataReader reader2 = command2.ExecuteReader();
-
-            //    while (reader2.Read())
-            //    {
-            //        Dictionary<string, string> map2 = new Dictionary<string, string>();
-
-            //        for (int j = 0; j < Second_Linefields.Length; j++)
-            //        {
-            //            map2.Add(Second_Linefields[j], reader2.GetString(j));
-            //        }
-
-            //        string json2 = JsonConvert.SerializeObject(map2, Formatting.Indented);
-
-            //        responseBody = responseBody + json2 + ",\n";
-            //    }
-
-            //    responseBody = responseBody + "]";
-
-            //    reader2.Close();
-
-            //    Console.WriteLine(responseBody);
-            //}
-            //catch (Exception ex)
-            //{
-            //    Console.WriteLine("Error: " + ex.Message);
-            //}
-
-            //foreach (string line in lines)
-            //{
-            //    string[] words = line.Split(' '); // 根据空格拆分每一行
-            //    foreach (string word in words)
-            //    {
-            //        Console.WriteLine(word);
-            //    }
-            //    Console.WriteLine("---------------------");
-            //}
         }
 
         public string[] ExtractFieldsFromQuery(string query)
@@ -261,5 +181,63 @@ namespace DataExchange
                 return query.Substring(fromIndex, spaceIndex - fromIndex).Trim();
             }
         }
+
+        public string sqlQuery(string query)
+        {
+            int selectIndex = query.IndexOf("SELECT");
+
+            string selectPart = query.Substring(selectIndex);
+
+            if (selectIndex >= 0)
+            {
+                int semicolonIndex = selectPart.IndexOf(';');
+                if (semicolonIndex >= 0)
+                {
+                    selectPart = selectPart.Substring(0, semicolonIndex);
+                }
+            }
+
+            return selectPart;
+        }
+
+        public string equalstring(string query)
+        {
+            string afterSemicolon = string.Empty;
+
+            int semicolonIndex = query.IndexOf(';');
+
+            if (semicolonIndex >= 0)
+            {
+                afterSemicolon = query.Substring(semicolonIndex + 1).Trim();
+            }
+
+            return afterSemicolon;
+        }
+
+        public List<int> TwoInt(string requestString)
+        {
+            List<int> answerList = new List<int>();
+
+            Match match = Regex.Match(requestString, @"\d+");
+
+            if (match.Success)
+            {
+                int firstNumber = int.Parse(match.Value);
+
+                match = match.NextMatch();
+
+                if (match.Success)
+                {
+                    int secondNumber = int.Parse(match.Value);
+
+                    answerList.Add(firstNumber);
+
+                    answerList.Add(secondNumber);
+                }
+            }
+
+            return answerList;
+        }
+
     }
 }

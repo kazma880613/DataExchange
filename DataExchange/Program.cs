@@ -9,6 +9,8 @@ dbService _dbService = new dbService();
 
 _dbService.ODBC_SQL_Open(_infoLoad.SQLInfoLoad());
 
-_dbService.doaction(_infoLoad.QueryInfoLoad());
+_infoLoad.requestInfoLoad();
+
+_dbService.Collecting_data(InfoLoad._request.QueryString);
 
 _dbService.ODBC_SQL_Close();

@@ -12,11 +12,17 @@ namespace DataExchange
     {
         public static dbConfig _SQLinfo;
 
+        public static string ConnectionType;
+
         public static string ConnectionString;
 
         public static string QueryString;
 
         public static request _request;
+
+        // static response _response = new response();
+
+        public static string URL;
 
         public InfoLoad()
         {
@@ -27,13 +33,15 @@ namespace DataExchange
         {
             string fileName = "SQLInfo.txt";
 
-            string fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName);
+            string fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory + "\\clientfile\\", fileName);
 
             try
             {
-                ConnectionString = File.ReadAllText(fullPath);
+                string[] AllInfo = File.ReadAllText(fullPath).Split(",");
 
-                //_SQLinfo = JsonConvert.DeserializeObject<dbConfig>(ConnectionString);
+                ConnectionType = AllInfo[0];
+
+                ConnectionString = AllInfo[1];
 
                 Console.WriteLine("ConnectionString Loading Is Success");
 
@@ -47,37 +55,111 @@ namespace DataExchange
             }
         }
 
-        public string QueryInfoLoad()
+        public void requestInfoLoad(string objectName)
         {
-            string fileName = "QueryString.txt";
+            string fileName = objectName + ".txt";
 
-            string fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName);
-
-            try
-            {
-                QueryString = File.ReadAllText(fullPath);
-
-                return QueryString;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Error: " + ex.Message);
-
-                return ex.Message;
-            }
-        }
-
-        public void requestInfoLoad()
-        {
-            string fileName = "requestInfo.txt";
-
-            string fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName);
+            string fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory + "\\clientfile\\", fileName);
 
             string AllInfo = File.ReadAllText(fullPath);
 
             if(AllInfo != null || AllInfo != "")
             {
                 _request = JsonConvert.DeserializeObject<request>(AllInfo);
+
+                //_response.objectItem = _request.objectItem;
+
+                Console.WriteLine("QueryString is ready.");
+            }
+        }
+
+        public void scheduleInfo()
+        {
+            string fileName = "TodoObject.txt";
+
+            string fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory + "\\clientfile\\", fileName);
+
+            string[] AllInfo = File.ReadAllLines(fullPath);
+
+            string lastLine = File.ReadLines(fullPath).Reverse().FirstOrDefault();
+
+            for (int i = 0; i < AllInfo.Length; i++)
+            {
+                string[] parts = AllInfo[i].Split(',');
+
+                if (parts.Length == 2)
+                {
+                    string key = parts[0];
+
+                    string value = parts[1];
+
+                    if(value != "success" )
+                    {
+                        requestInfoLoad(key);
+
+                        if(AllInfo[i] == lastLine)
+                        {
+                            resetobjectStatus();
+                        }
+                        else
+                        {
+                            try
+                            {
+                                AllInfo[i] = key + "," + "success";
+
+                                File.WriteAllLines(fullPath, AllInfo);
+                            }
+                            catch
+                            {
+                                AllInfo[i] = key + "," + "fail";
+
+                                File.WriteAllLines(fullPath, AllInfo);
+                            }
+                        }
+
+                        break;
+                    }
+
+                }
+            }
+
+        }
+
+        public void resetobjectStatus()
+        {
+            string fileName = "TodoObject.txt";
+
+            string fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory + "\\clientfile\\", fileName);
+
+            string[] AllInfo = File.ReadAllLines(fullPath);
+
+            for (int i = 0; i < AllInfo.Length; i++)
+            {
+                string[] parts = AllInfo[i].Split(',');
+
+                if (parts.Length == 2)
+                {
+                    string key = parts[0];
+
+                    AllInfo[i] = key + "," + "Not yet";
+
+                    File.WriteAllLines(fullPath, AllInfo);
+
+                }
+            }
+        }
+
+        public void getURL()
+        {
+            string fileName = "apiURL.txt";
+
+            string fullPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory + "\\clientfile\\", fileName);
+
+            string[] AllInfo = File.ReadAllLines(fullPath);
+
+            if (AllInfo.Length > 0)
+            {
+                URL = AllInfo[0];
             }
         }
     }

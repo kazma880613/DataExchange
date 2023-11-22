@@ -30,6 +30,13 @@ namespace DataExchange
 
     public class response
     {
+        public string objectItem;
         public string body; 
+    }
+
+    public class dataInformation
+    {
+        public static int batchSize = 50;
+        public static int delayTime = 40000;
     }
 }

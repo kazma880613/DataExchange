@@ -1,0 +1,6 @@
+{	
+	"objectItem":"Product",
+	"QueryString":[
+			"SELECT ima01, ima02, WL, sfbud13, ima021, ima25, ima908, imc01, imadate, ima77, xmf07, ma_ima20, ma_ima21, ima75, imc02, ima81, ima82 FROM CRM_PRODUCT ;"
+			]
+}

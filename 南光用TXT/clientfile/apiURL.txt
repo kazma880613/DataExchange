@@ -1,0 +1,1 @@
+https://nangkuang2023--nc.sandbox.my.salesforce-sites.com//services/apexrest/ReceiveFromERP

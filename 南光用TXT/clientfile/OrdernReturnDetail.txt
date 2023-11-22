@@ -1,0 +1,6 @@
+{	
+	"objectItem":"OrdernReturnDetail",
+	"QueryString":[
+			"SELECT ogoh_bool, ogoh01, ogoh03, ogoh04, ogoh092, ogoh06, ima021, ogoh12, ma_ogb01, ogoh13, ogoh14t,  xmf07 FROM CRM_OrdernReturnDetail ;"
+			]
+}

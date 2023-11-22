@@ -12,6 +12,8 @@ using System.Collections;
 using Google.Protobuf.WellKnownTypes;
 using MySqlX.XDevAPI.Relational;
 using System.Text.RegularExpressions;
+using Org.BouncyCastle.Asn1.Ocsp;
+using System.Reflection.Metadata;
 
 namespace DataExchange
 {
@@ -19,27 +21,74 @@ namespace DataExchange
     {
         OdbcConnection _OdbcConnection;
 
+        OracleConnection connection ;
+
+        public static List<response> _responseList = new List<response>();
+
         public dbService()
         {
 
         }
 
-        public void ODBC_SQL_Open(string connectionString)
+        public void chooseSQL_Open()
+        {
+            if(InfoLoad.ConnectionType == "ODBC")
+            {
+                ODBC_SQL_Open();
+            }
+
+            if(InfoLoad.ConnectionType == "ORACLE")
+            {
+                ORACLE_SQL_Open();
+            }
+            
+        }
+
+        public void ODBC_SQL_Open()
         {
 
-            _OdbcConnection = new OdbcConnection(connectionString);
+            _OdbcConnection = new OdbcConnection(InfoLoad.ConnectionString);
 
             try
             {
                 _OdbcConnection.Open();
 
-                Console.WriteLine("DB Connection is Connect");
+                Console.WriteLine("DB Connection is Connect.");
             }
             catch (Exception ex)
             {
-                Console.WriteLine("ODBC Error: " + ex.Message);
+                Console.WriteLine("DB Connection Fail, ODBC Error: " + ex.Message);
             }
 
+        }
+
+        public void ORACLE_SQL_Open()
+        {
+            connection = new OracleConnection(InfoLoad.ConnectionString);
+
+            try
+            {
+                connection.Open();
+
+                Console.WriteLine("DB Connection is Connect.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("DB Connection Fail, ORACLE Error: " + ex.Message);
+            }
+        }
+
+        public void chooseSQL_Close()
+        {
+            if (InfoLoad.ConnectionType == "ODBC")
+            {
+                ODBC_SQL_Close();
+            }
+
+            if (InfoLoad.ConnectionType == "ORACLE")
+            {
+                ORACLE_SQL_Close();
+            }
         }
 
         public void ODBC_SQL_Close()
@@ -50,18 +99,38 @@ namespace DataExchange
                 {
                     _OdbcConnection.Close();
 
-                    Console.WriteLine("DB Connection is Closed");
+                    Console.WriteLine("DB Connection is Closed.");
                 }
                 
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
+                Console.WriteLine("DB Connection Close Fail, ODBC Error: " + ex.Message);
+            }
+        }
+
+        public void ORACLE_SQL_Close()
+        {
+            try
+            {
+                if (connection.State.ToString() == "Open")
+                {
+                    connection.Close();
+
+                    Console.WriteLine("DB Connection is Closed.");
+                }
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("DB Connection Close Fail, ORACLE Error: " + ex.Message);
             }
         }
 
         public void Collecting_data(List<string> QueryString)
         {
+            HandleString _handler = new HandleString();
+
             string responseBody = string.Empty;
 
             List<Dictionary<string, object>> respnoseJson = new List<Dictionary<string, object>>();
@@ -72,11 +141,11 @@ namespace DataExchange
 
             for (int i = 0; i < QueryString.Count; i++)
             {
-                string tableName = ExtractTableNameFromQuery(QueryString[i]);
+                string tableName = _handler.ExtractTableNameFromQuery(QueryString[i]);
 
-                string[] fieldsName = ExtractFieldsFromQuery(QueryString[i]);
+                string[] fieldsName = _handler.ExtractFieldsFromQuery(QueryString[i]);
 
-                string divideString = equalstring(QueryString[i]);
+                string divideString = _handler.equalstring(QueryString[i]);
 
                 keyValuePairs.Add(tableName, fieldsName);
 
@@ -85,16 +154,33 @@ namespace DataExchange
 
             try
             {
-                OdbcCommand command = new OdbcCommand(sqlQuery(QueryString[0]), _OdbcConnection);
+                int count = 0;
+
+                for(int c = 0; c < QueryString.Count; c++)
+                {
+                    QueryString[c] = _handler.DateReplace(QueryString[c]) ;
+                }
+
+                //Console.WriteLine(QueryString[0]);
+
+                OdbcCommand command = new OdbcCommand(_handler.sqlQuery(QueryString[0]), _OdbcConnection);
+
                 OdbcDataReader reader = command.ExecuteReader();
 
                 while (reader.Read())
                 {
                     Dictionary<string, object> map = new Dictionary<string, object>();
 
-                    for (int i = 0; i < keyValuePairs[ExtractTableNameFromQuery(sqlQuery(QueryString[0]))].Length; i++)
+                    for (int i = 0; i < keyValuePairs[_handler.ExtractTableNameFromQuery(_handler.sqlQuery(QueryString[0]))].Length; i++)
                     {
-                        map.Add(keyValuePairs[ExtractTableNameFromQuery(sqlQuery(QueryString[0]))][i], reader.GetString(i));
+
+                        string fielddata = string.Empty;
+
+                        object valueFromDatabase = reader[keyValuePairs[_handler.ExtractTableNameFromQuery(_handler.sqlQuery(QueryString[0]))][i]];
+
+                        fielddata = (valueFromDatabase != DBNull.Value) ? valueFromDatabase.ToString() : string.Empty;
+
+                        map.Add(keyValuePairs[_handler.ExtractTableNameFromQuery(_handler.sqlQuery(QueryString[0]))][i], fielddata);
                     }
 
                     if (keyValuePairs.Count > 1)
@@ -104,139 +190,116 @@ namespace DataExchange
                         {
                             List<Dictionary<string, object>> Jsonobject = new List<Dictionary<string, object>>();
 
-                            List<int> newEqual = new List<int>();
+                            List<int> newEqualList = new List<int>();
 
-                            newEqual = TwoInt(EqualValue[j]);
+                            bool _ifEqual = false;
 
-                            OdbcCommand command2 = new OdbcCommand(sqlQuery(QueryString[j]), _OdbcConnection);
+                            newEqualList = _handler.TwoInt(EqualValue[j]);
+
+                            OdbcCommand command2 = new OdbcCommand(_handler.sqlQuery(QueryString[j]), _OdbcConnection);
                             OdbcDataReader reader2 = command2.ExecuteReader();
 
                             while (reader2.Read())
                             {
                                 Dictionary<string, object> map2 = new Dictionary<string, object>();
 
-                                if (reader.GetString(newEqual[0]) == reader2.GetString(newEqual[1]))
+                                for (int m = 0; m + 2 <= newEqualList.Count ; m += 2)
                                 {
-                                    for (int k = 0; k < keyValuePairs[ExtractTableNameFromQuery(sqlQuery(QueryString[j]))].Length; k++)
+                                    if (reader.GetString(newEqualList[m]) == reader2.GetString(newEqualList[m+1]))
                                     {
-                                        map2.Add(keyValuePairs[ExtractTableNameFromQuery(sqlQuery(QueryString[j]))][k], reader2.GetString(k));
+                                        _ifEqual = true;
+                                    }
+                                    else
+                                    {
+                                        _ifEqual = false;
+
+                                        break;
+                                    }
+                                }
+
+                                if(_ifEqual == true)
+                                {
+                                    for (int k = 0; k < keyValuePairs[_handler.ExtractTableNameFromQuery(_handler.sqlQuery(QueryString[j]))].Length; k++)
+                                    {
+
+                                        string field2data = string.Empty;
+
+                                        object valueFromDatabase2 = reader2[keyValuePairs[_handler.ExtractTableNameFromQuery(_handler.sqlQuery(QueryString[j]))][k]];
+
+                                        field2data = (valueFromDatabase2 != DBNull.Value) ? valueFromDatabase2.ToString() : string.Empty;
+
+                                        map2.Add(keyValuePairs[_handler.ExtractTableNameFromQuery(_handler.sqlQuery(QueryString[j]))][k], field2data);
                                     }
 
                                     Jsonobject.Add(map2);
                                 }
+                                
                             }
 
                             reader2.Close();
 
                             if (Jsonobject.Count > 0)
                             {
-                                map.Add(ExtractTableNameFromQuery(sqlQuery(QueryString[j])), Jsonobject);
+                                map.Add(_handler.ExtractTableNameFromQuery(_handler.sqlQuery(QueryString[j])), Jsonobject);
                             }
                         }
 
                     }
 
                     respnoseJson.Add(map);
+
+                    count++;
                 }
 
                 reader.Close();
 
-                responseBody = JsonConvert.SerializeObject(respnoseJson, Formatting.Indented);
+                int batchSize ;
 
-                Console.WriteLine(responseBody);
+                if (InfoLoad._request.objectItem == "OrdernReturnDetail")
+                {
+                    batchSize = 50;
+                }
+                else
+                {
+                    batchSize = 100;
+                }
+
+                
+                for (int i = 0; i < respnoseJson.Count; i += batchSize)
+                {
+                    var batch = respnoseJson.Skip(i).Take(batchSize);
+
+                    string json = JsonConvert.SerializeObject(batch, Formatting.Indented);
+
+                    response _newResponse = new response();
+
+                    _newResponse.objectItem = InfoLoad._request.objectItem;
+
+                    _newResponse.body = json;
+
+                    //Console.WriteLine(json);
+
+                    _responseList.Add(_newResponse);
+                }
+
+                //responseBody = JsonConvert.SerializeObject(respnoseJson, Formatting.Indented);
+
+                //InfoLoad._response.body[0] = responseBody;
+
+                //Console.WriteLine(responseBody);
+
+                Console.WriteLine(count);
+
+                //return responseBody;
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Error: " + ex.Message);
+                responseBody = ex.Message;
+
+                Console.WriteLine(responseBody);
+
+                //return responseBody;
             }
-        }
-
-        public string[] ExtractFieldsFromQuery(string query)
-        {
-            int startIndex = query.IndexOf("SELECT") + 7;
-            int endIndex = query.IndexOf("FROM");
-
-            string fieldsSubstring = query.Substring(startIndex, endIndex - startIndex).Trim();
-            string[] fields = fieldsSubstring.Split(',');
-
-            for (int i = 0; i < fields.Length; i++)
-            {
-                fields[i] = fields[i].Trim();
-            }
-
-            return fields;
-        }
-
-        public string ExtractTableNameFromQuery(string query)
-        {
-            int fromIndex = query.IndexOf("FROM") + 5; // 5 是 "FROM " 的长度
-            int spaceIndex = query.IndexOf(" ", fromIndex);
-
-            if (spaceIndex == -1)
-            {
-                return query.Substring(fromIndex).Trim();
-            }
-            else
-            {
-                return query.Substring(fromIndex, spaceIndex - fromIndex).Trim();
-            }
-        }
-
-        public string sqlQuery(string query)
-        {
-            int selectIndex = query.IndexOf("SELECT");
-
-            string selectPart = query.Substring(selectIndex);
-
-            if (selectIndex >= 0)
-            {
-                int semicolonIndex = selectPart.IndexOf(';');
-                if (semicolonIndex >= 0)
-                {
-                    selectPart = selectPart.Substring(0, semicolonIndex);
-                }
-            }
-
-            return selectPart;
-        }
-
-        public string equalstring(string query)
-        {
-            string afterSemicolon = string.Empty;
-
-            int semicolonIndex = query.IndexOf(';');
-
-            if (semicolonIndex >= 0)
-            {
-                afterSemicolon = query.Substring(semicolonIndex + 1).Trim();
-            }
-
-            return afterSemicolon;
-        }
-
-        public List<int> TwoInt(string requestString)
-        {
-            List<int> answerList = new List<int>();
-
-            Match match = Regex.Match(requestString, @"\d+");
-
-            if (match.Success)
-            {
-                int firstNumber = int.Parse(match.Value);
-
-                match = match.NextMatch();
-
-                if (match.Success)
-                {
-                    int secondNumber = int.Parse(match.Value);
-
-                    answerList.Add(firstNumber);
-
-                    answerList.Add(secondNumber);
-                }
-            }
-
-            return answerList;
         }
 
     }

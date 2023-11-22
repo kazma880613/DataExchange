@@ -1,6 +1,0 @@
-{	
-	"objectItem":"AccountsReceivable",
-	"QueryString":[
-			"SELECT oma01, oma03, oma68, oma11, oma12, ome01, oma54t, oma55, oob07, oob08 FROM CRM_AccountsReceivable ;"
-			]
-}

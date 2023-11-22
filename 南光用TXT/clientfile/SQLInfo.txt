@@ -1,1 +1,0 @@
-ODBC,DSN=crm;Uid=crm;Pwd=crm123654;Charset=UTF8;

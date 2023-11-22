@@ -1,6 +1,0 @@
-{	
-	"objectItem":"StrikeABalance",
-	"QueryString":[
-			"SELECT ooa01, oob02, ooa02, oob06, oob10, oob07, oob08, ooadate FROM CRM_StrikeABalance ;"
-			]
-}

@@ -1,6 +1,0 @@
-{	
-	"objectItem":"Account",
-	"QueryString":[
-			"SELECT occ01, occ02, occ18, occ35, occ11, occ1004, occ34, occud03, occdate, occ03, occ302, occ231, occ261, occ28, occ271, occ701, occ263, occ262, occ292, occ29, occ272, occ702, occ45, occ703, occ63, occ30, occ704 FROM crm_customer where occdate = TO_DATE('Today', 'YYYY-MM-DD') ;"
-			]
-}

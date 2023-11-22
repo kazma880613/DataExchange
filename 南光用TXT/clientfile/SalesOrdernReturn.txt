@@ -1,6 +1,0 @@
-{	
-	"objectItem":"SalesOrdernReturn",
-	"QueryString":[
-			"SELECT ogoh_bool, ogoh01, oga69, ogoh02, ogoh03, ogoh14, ogohconf, ogoh23, ogoh24, oha09, ohadate, pmc01, oga56 FROM CRM_SalesOrdernReturn ;"
-			]
-}
